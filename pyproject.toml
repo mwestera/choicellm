@@ -1,6 +1,6 @@
 [project]
 name = "choicellm"
-version = "0.2.1"
+version = "0.3.0"
 authors = [{name="Matthijs Westera", email="m.westera@hum.leidenuniv.nl"}]
 description = "Using LLMs for rating items on a scale, comparative judgments, and multiple choice questions."
 readme = "README.md"
@@ -13,17 +13,34 @@ classifiers = [
     "Topic :: Text Processing :: Linguistic",
 ]
 requires-python = ">=3.10"
-dependencies = ["transformers", "torch", "accelerate", "optimum", "bitsandbytes", "openai", "tiktoken", "pandas"]
+# Core is dependency-free. Install a backend via the extras below, and see the README for the
+# right PyTorch build (a mismatched CUDA build silently runs on CPU).
+dependencies = []
 license-files = ["LICENSE"]
 
+[project.optional-dependencies]
+# Local huggingface models. Install a matching torch build first (https://pytorch.org/get-started/locally/).
+local = ["torch", "transformers", "accelerate", "bitsandbytes"]
+# OpenAI-compatible API models (OpenAI, llama.cpp, vLLM, Ollama, ...).
+openai = ["openai", "tiktoken"]
+all = ["torch", "transformers", "accelerate", "bitsandbytes", "openai", "tiktoken"]
+test = ["pytest"]
+
 [project.scripts]
-choicellm = "choicellm:main"
-choicellm-aggregate = "aggregate:main"
-choicellm-template = "prompttemplate:main"
+choicellm = "choicellm.cli:main"
+choicellm-aggregate = "choicellm.aggregate:main"
+choicellm-template = "choicellm.templates:main"
 
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
 
 [project.urls]
 "Homepage" = "https://github.com/mwestera/choicellm"

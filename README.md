@@ -14,13 +14,34 @@ The scores obtained are deterministic, obtained by accessing the underlying logi
 
 ## Installation
 
-From PyPI:
+The core is dependency-free; pick the backend(s) you need via extras:
 
 ```bash
-pip install choicellm
+pip install "choicellm[local]"      # local Huggingface models (torch + transformers)
+pip install "choicellm[openai]"     # models via an OpenAI-compatible API (OpenAI, llama.cpp, vLLM, ...)
+pip install "choicellm[all]"        # everything
 ```
 
-Installation makes available the main program `choicellm`, and helper programs `choicellm-template` and `choicellm-aggregate`.
+Installation makes available the main program `choicellm`, and helper programs `choicellm-template` and `choicellm-aggregate`. (`choicellm-template` and `choicellm-aggregate` need no extras.)
+
+### Running local models on a GPU (PyTorch build)
+
+For local (Huggingface transformers) models, `choicellm` uses your GPU automatically *if* PyTorch can see it. A common pitfall: `pip install` may pull a PyTorch build compiled for a newer CUDA than your NVIDIA driver supports, in which case PyTorch **silently falls back to CPU** (very slow) — no error, just slow runs. `choicellm` will print `Loading model on device: cpu` and a warning when this happens.
+
+To avoid it, install the PyTorch build that matches your system *before* (or after) installing `choicellm`, following the official selector at <https://pytorch.org/get-started/locally/>. Check the maximum CUDA version your driver supports with `nvidia-smi` (top-right), and pick a matching build. For example, for a driver supporting CUDA 12.x:
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cu126
+pip install "choicellm[local]"
+```
+
+You can confirm PyTorch sees the GPU with:
+
+```bash
+python -c "import torch; print(torch.cuda.is_available(), torch.version.cuda)"
+```
+
+(This only matters for local models; the OpenAI-compatible API backends don't use your local GPU.)
 
 ## First create a suitable prompt JSON file (`choicellm-template`)
 
@@ -67,12 +88,24 @@ export OPENAI_API_KEY=yoursecretkey123
 Then you can specify an OpenAI model (and include the `--openai` flag):
 
 ```bash
-choicellm items.txt --model 'gpt-4o' --openai --my_first_prompt.json > results.csv
+choicellm items.txt --model 'gpt-4o' --openai --prompt my_first_prompt.json > results.csv
 ```
 
 Since GPT-4o is an 'instruct' (i.e., chat) model, make sure you use it with a prompt template created with the `--chat` option, e.g., `choicellm-template --scalar --chat`.
 
-On the whole, while `choicellm` is probably not entirely model-agnostic in some unforeseen ways, it should work with Huggingface models and OpenAI models. Reasonable local options that fit in a 48GB GPU: `unsloth/llama-3-70b-bnb-4bit` or `unsloth/Llama-3.3-70B-Instruct-bnb-4bit`. Since the latter is an 'instruct' model, again make sure to use a prompt template generated with the `--chat` option.
+### Other OpenAI-compatible servers (llama.cpp, vLLM, Ollama, ...)
+
+You are not limited to OpenAI: any server that exposes an OpenAI-compatible chat API works via the `--base-url` option. For example, with a local [llama.cpp](https://github.com/ggml-org/llama.cpp) server (`llama-server -m model.gguf --port 8080`):
+
+```bash
+choicellm items.txt --model 'my-model' --base-url http://localhost:8080/v1 --prompt my_first_prompt.json > results.csv
+```
+
+(You can also set the `OPENAI_BASE_URL` environment variable instead of passing `--base-url` each time.) Passing `--base-url` implies API mode, so `--openai` is not needed. As with OpenAI, use a `--chat` prompt template.
+
+For reliable results, `choicellm` biases the model toward the choice labels (via `logit_bias`), which requires knowing the labels' token ids. For genuine OpenAI models these are looked up automatically; for other servers, pass the matching Huggingface tokenizer via `--tokenizer` (e.g. `--tokenizer meta-llama/Llama-3.1-8B-Instruct`). If you omit it, `choicellm` falls back to simply reading whatever logprobs the server returns, which may be slightly less reliable.
+
+On the whole, while `choicellm` is probably not entirely model-agnostic in some unforeseen ways, it should work with Huggingface models and OpenAI-compatible APIs. Reasonable local options that fit in a 48GB GPU: `unsloth/llama-3-70b-bnb-4bit` or `unsloth/Llama-3.3-70B-Instruct-bnb-4bit`. Since the latter is an 'instruct' model, again make sure to use a prompt template generated with the `--chat` option. Quantized (e.g. bitsandbytes 4/8-bit) models are loaded via `device_map`; for unquantized models you can pick a smaller dtype with `--dtype` (e.g. `--dtype bfloat16`) to save memory.
 
 ## A bit more info about the three 'modes': scalar, comparative, categorical
 
