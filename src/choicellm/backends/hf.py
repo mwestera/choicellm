@@ -109,7 +109,6 @@ def create_cache(model, tokenizer, common_start) -> "transformers.DynamicCache":
         cache = model(
             input_ids=inputs['input_ids'],
             attention_mask=inputs['attention_mask'],  # only to avoid a warning
-            past_key_values=transformers.DynamicCache(),
             pad_token_id=tokenizer.eos_token_id,
         ).past_key_values
     return cache
