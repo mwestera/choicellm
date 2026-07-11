@@ -68,7 +68,7 @@ def multiple_choice_probs(prompt, model, tokenizer, labels_tokenized, cache=None
     if isinstance(prompt, str):
         prompt_encoded = tokenizer(prompt, return_tensors='pt').to(DEVICE)
     else:   # openai-style messages
-        prompt_encoded = tokenizer.apply_chat_template(prompt, return_tensors="pt", add_generation_prompt=True, return_dict=True).to(DEVICE)
+        prompt_encoded = tokenizer.apply_chat_template(prompt, return_tensors="pt", add_generation_prompt=True, return_dict=True, enable_thinking=False,).to(DEVICE)
 
     def prob_for_prefix(prefix, next_token_ids):
         prompt_plus_prefix = torch.cat(
@@ -104,7 +104,7 @@ def create_cache(model, tokenizer, common_start) -> "transformers.DynamicCache":
         if isinstance(common_start, str):
             inputs = tokenizer(common_start, return_tensors="pt").to(DEVICE)
         else:
-            inputs = tokenizer.apply_chat_template(common_start, return_tensors="pt", return_dict=True).to(DEVICE)
+            inputs = tokenizer.apply_chat_template(common_start, return_tensors="pt", return_dict=True, add_generation_prompt=True, enable_thinking=False,).to(DEVICE)
 
         cache = model(
             input_ids=inputs['input_ids'],
